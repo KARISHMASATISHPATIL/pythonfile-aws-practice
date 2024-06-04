@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Image to ECR
 
 on:
   push:
@@ -13,24 +13,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          registry: 585785618606.dkr.ecr.ap-south-1.amazonaws.com
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Build, tag, and push Docker image to Amazon ECR
-        env:
-          ECR_REPOSITORY: flask-app  # Replace 'flask-app' with your ECR repository name
-          IMAGE_TAG: latest
-        run: |
-          docker buildx create --name mybuilder
-          docker buildx use mybuilder
-          docker buildx build --platform linux/amd64,linux/arm64 -t 585785618606.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push 585785618606.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build Docker image
+        run: docker build -t flask-app .
+
+      - name: Tag Docker image
+        run: docker tag flask-app ${{ steps.login-ecr.outputs.registry }}/github-sample:latest
+
+      - name: Push Docker image to Amazon ECR
+        run: docker push ${{ steps.login-ecr.outputs.registry }}/github-sample:latest
